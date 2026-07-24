@@ -1,0 +1,181 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
+interface Movie {
+  imdbID: string;
+  Title: string;
+  Year: string;
+  Poster: string;
+}
+
+export default function Home() {
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [search, setSearch] = useState("Titanic");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const fetchMovies = async (query: string) => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const apiKey = process.env.NEXT_PUBLIC_OMDB_API_KEY;
+
+      const response = await fetch(
+        `https://www.omdbapi.com/?apikey=${apiKey}&s=${encodeURIComponent(
+          query
+        )}`
+      );
+
+      const data = await response.json();
+
+      if (data.Response === "False") {
+        setMovies([]);
+        setError(data.Error || "No movies found.");
+      } else {
+        setMovies(data.Search || []);
+      }
+    } catch (error) {
+      setMovies([]);
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // CSR: Fetch movies in the browser after the page loads
+  useEffect(() => {
+    fetchMovies("Titanic");
+  }, []);
+
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!search.trim()) {
+      setError("Please enter a movie name.");
+      setMovies([]);
+      return;
+    }
+
+    fetchMovies(search.trim());
+  };
+
+  return (
+    <main className="min-h-screen bg-gray-100 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+
+        {/* Header */}
+        <header className="mb-10 text-center">
+          <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl">
+            🎬 Movie Explorer
+          </h1>
+
+          <p className="mt-3 text-gray-600">
+            Search and explore your favorite movies
+          </p>
+        </header>
+
+        {/* Search Form */}
+        <form
+          onSubmit={handleSearch}
+          className="mx-auto mb-10 flex max-w-2xl flex-col gap-3 sm:flex-row"
+        >
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search for a movie..."
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+          />
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="rounded-lg bg-blue-600 px-7 py-3 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {loading ? "Searching..." : "Search"}
+          </button>
+        </form>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="py-10 text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+
+            <p className="text-lg font-semibold text-blue-600">
+              Loading movies...
+            </p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {!loading && error && (
+          <div className="mx-auto max-w-2xl rounded-lg bg-red-100 p-5 text-center">
+            <p className="font-semibold text-red-700">
+              {error}
+            </p>
+          </div>
+        )}
+
+        {/* Movie List */}
+        {!loading && !error && movies.length > 0 && (
+          <>
+            <h2 className="mb-6 text-2xl font-bold text-gray-900">
+              Search Results
+            </h2>
+
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+
+              {movies.map((movie) => (
+                <Link
+                  key={movie.imdbID}
+                  href={`/movie/${movie.imdbID}`}
+                  className="group overflow-hidden rounded-xl bg-white shadow-md transition duration-300 hover:-translate-y-1 hover:shadow-xl"
+                >
+                  {/* Movie Poster */}
+                  <div className="aspect-[2/3] overflow-hidden bg-gray-200">
+                    {movie.Poster && movie.Poster !== "N/A" ? (
+                      <img
+                        src={movie.Poster}
+                        alt={movie.Title}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center p-4 text-center text-sm text-gray-500">
+                        No Poster Available
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Movie Information */}
+                  <div className="p-4">
+                    <h3 className="line-clamp-2 font-bold text-gray-900">
+                      {movie.Title}
+                    </h3>
+
+                    <p className="mt-2 text-sm text-gray-500">
+                      {movie.Year}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+
+            </div>
+          </>
+        )}
+
+        {/* No Results */}
+        {!loading && !error && movies.length === 0 && (
+          <div className="py-10 text-center">
+            <p className="text-lg text-gray-600">
+              No movies found.
+            </p>
+          </div>
+        )}
+
+      </div>
+    </main>
+  );
+}
